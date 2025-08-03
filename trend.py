@@ -122,6 +122,3 @@ def analyze_market_structure_with_indicators(df):
         return "BEARISH structure 🔴"
     elif sidewayStructure:
         return "Choppy sideways price action 🟡"
-
-df = fetchData("BTC/USDT", "4h")
-print(analyze_market_structure(df))
