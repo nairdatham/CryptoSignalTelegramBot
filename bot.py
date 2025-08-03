@@ -111,6 +111,7 @@ def handle_check(message):
 # /scanall command
 @bot.message_handler(commands=['scanall'])
 def handle_scan_all(message):
+    final_message = []
     parts = message.text.split()
     if len(parts) != 2:
         bot.reply_to(message, "❌ Usage: /scanall INFORMATION\nExample: /scanall Trend")
@@ -129,15 +130,20 @@ def handle_scan_all(message):
                 df = fetchData(coin, tf)
                 if(info == INFORMATION["Trend"]):
                     msg = analyze_market_structure(df)
+                    msg = f"{coin} {tf} {msg}"
+                    final_message.append(msg)
                 elif (info == INFORMATION["Signal"]):
                     # results = check_conditions(df, coin)
                     # msg = f"🔔 Signal for {coin} on {tf}:\n"
                     # for key, val in results.items():
                     #     msg += f"• {key}: {val}\n"
                     msg = "Signal feature is not available currently"
-                bot.send_message(message.chat.id, msg)
+                    final_message.append(msg)
+                # bot.send_message(message.chat.id, msg)
             except Exception as e:
-                bot.send_message(message.chat.id, f"❌ Error with {coin} {info} {tf}: {e}")
+                final_message.append(f"❌ Error with {coin} {info} {tf}: {e}")
+
+    bot.send_message(message.chat.id, "\n".join(final_message))
 
 print("Bot is running with inline buttons...")
 bot.polling()
