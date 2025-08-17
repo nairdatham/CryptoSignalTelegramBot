@@ -6,6 +6,7 @@ from trend import analyze_market_structure
 import os
 from dotenv import load_dotenv
 from dataFetcher import fetchData
+from backtestEngine import backtest_strategy
 
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -18,7 +19,7 @@ def send_welcome(message):
     bot.reply_to(message,
         "🤖 Welcome to the Crypto Signal Bot!\n\n"
         "Use:\n"
-        "• /check COIN TIMEFRAME (e.g. /check BTC/USDT 1h)\n"
+        "• /check COIN INFORMATION TIMEFRAME (e.g. /check BTC/USDT Trend 1h)\n"
         "• /scanall – scan all coins and timeframes\n"
         "• Or use buttons below 👇",
         reply_markup=coin_buttons()
@@ -48,6 +49,7 @@ def timeframe_buttons(coin, info):
 # Handle button presses
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
+    msg = None
     if call.data.startswith("Coin:"):
         coin = call.data.split(":")[1]
         user_state[call.from_user.id] = {"Coin": coin}
@@ -63,16 +65,29 @@ def callback_query(call):
         _, coin, info, tf = call.data.split(":")
         bot.send_message(call.message.chat.id, f"⏳ Analyzing {coin} for {info} on {tf}...")
         try:
-            df = fetchData(coin, tf)
+            tradeData = fetchData(coin, tf)
             if(info == INFORMATION["Trend"]):
-                msg = analyze_market_structure(df)
+                msg = analyze_market_structure(tradeData)
             elif (info == INFORMATION["Signal"]):
-                tradeResults = strategy(df, coin)
+                tradeResults = strategy(tradeData, coin)
                 results = strategyPrinter(tradeResults)
                 msg = f"🔔 Signal for {coin} on {tf}:\n"
                 for key, val in results.items():
                     msg += f"• {key}: {val}\n"
-            bot.send_message(call.message.chat.id, msg)
+            elif (info == INFORMATION["Backtest"]):
+                results = backtest_strategy(strategy, tradeData, coin)
+                summary = results[0]
+                chart = results[1]
+
+                msg = "Back-testing summary:\n"
+                for key, val in summary.items():
+                    msg += f"• {key}: {val}\n"
+
+                bot.send_photo(call.message.chat.id, chart, caption=f"{coin} Strategy Backtest Results")
+                
+            if msg:
+                bot.send_message(call.message.chat.id, msg)
+
         except Exception as e:
             bot.send_message(call.message.chat.id, f"❌ Error: {e}")
 
@@ -80,6 +95,7 @@ def callback_query(call):
 @bot.message_handler(commands=['check'])
 def handle_check(message):
     try:
+        msg = None
         parts = message.text.split()
         if len(parts) != 4:
             bot.reply_to(message, "❌ Usage: /check COIN/USDT INFORMATION TIMEFRAME\nExample: /check BTC/USDT Trend 1h OR BTC/USDT Signal 1h")
@@ -88,7 +104,7 @@ def handle_check(message):
         symbol, info, timeframe = parts[1].upper(), parts[2].title(), parts[3].lower()
 
         if info not in INFORMATION:
-            bot.reply_to(message, f"❌ Invalid information given. Use: {', '.join(INFORMATION)}")
+            bot.reply_to(message, f"❌ Invalid information specified {info}. Use: {', '.join(INFORMATION)}")
             return
 
         if timeframe not in TIMEFRAMES:
@@ -96,18 +112,28 @@ def handle_check(message):
             return
 
         bot.send_message(message.chat.id, f"📊 Analyzing {symbol} for {info} on {timeframe}...")
-        df = fetchData(symbol, timeframe)
+        tradeData = fetchData(symbol, timeframe)
 
         if(info == INFORMATION["Trend"]):
-            msg = analyze_market_structure(df)
+            msg = analyze_market_structure(tradeData)
         elif (info == INFORMATION["Signal"]):
-            tradeResults = strategy(df, symbol)
+            tradeResults = strategy(tradeData, symbol)
             results = strategyPrinter(tradeResults)
             msg = f"🔔 Signal for {symbol} on {timeframe}:\n"
             for key, val in results.items():
                 msg += f"• {key}: {val}\n"
+        elif (info == INFORMATION["Backtest"]):
+            results = backtest_strategy(strategy, tradeData, symbol)
+            summary = results[0]
+            chart = results[1]
 
-        bot.send_message(message.chat.id, msg)
+            msg = "Back-testing summary:\n"
+            for key, val in summary.items():
+                msg += f"• {key}: {val}\n"
+            bot.send_photo(message.chat.id, chart, caption=f"{symbol} Strategy Backtest Results")
+
+        if msg:
+            bot.send_message(message.chat.id, msg)
 
     except Exception as e:
         bot.send_message(message.chat.id, f"❌ Error: {str(e)}")
@@ -131,13 +157,13 @@ def handle_scan_all(message):
     for coin in COIN_LIST:
         for tf in TIMEFRAMES:
             try:
-                df = fetchData(coin, tf)
+                tradeData = fetchData(coin, tf)
                 if(info == INFORMATION["Trend"]):
-                    msg = analyze_market_structure(df)
+                    msg = analyze_market_structure(tradeData)
                     msg = f"{coin} {tf} {msg}"
                     final_message.append(msg)
                 elif (info == INFORMATION["Signal"]):
-                    tradeResults = strategy(df, coin)
+                    tradeResults = strategy(tradeData, coin)
                     results = strategyPrinter(tradeResults)
                     msg = f"🔔 Signal for {coin} on {tf}:\n"
                     for key, val in results.items():

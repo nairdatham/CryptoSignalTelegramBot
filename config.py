@@ -3,7 +3,7 @@ TIMEFRAMES = {"1d": "1d",
               "4h": "4h", 
               "1h": "1h", 
               "15m": "15m"}
-INFORMATION = {"Trend": "Trend", "Signal": "Signal"}
+INFORMATION = {"Trend": "Trend", "Signal": "Signal", "Backtest": "Backtest"}
 
 # Define your key price levels per coin
 KEY_LEVELS = {
