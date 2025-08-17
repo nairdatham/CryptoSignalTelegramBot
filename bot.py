@@ -2,10 +2,10 @@ import telebot
 from telebot import types
 from config import COIN_LIST, TIMEFRAMES, INFORMATION
 from simpleStrategy import strategy, strategyPrinter
-from trend import fetchData
 from trend import analyze_market_structure
 import os
 from dotenv import load_dotenv
+from dataFetcher import fetchData
 
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
